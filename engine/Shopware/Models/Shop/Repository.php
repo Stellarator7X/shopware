@@ -401,7 +401,6 @@ class Repository extends ModelRepository
             $shop->setSecureHost($main->getSecureHost());
             $shop->setSecureBasePath($main->getSecureBasePath());
             $shop->setBasePath($shop->getBasePath() ?: $main->getBasePath());
-            $shop->setBaseUrl($shop->getBaseUrl() ?: $main->getBaseUrl());
             $shop->setTemplate($main->getTemplate());
             $shop->setCurrencies($main->getCurrencies());
             $shop->setChildren($main->getChildren());
@@ -468,6 +467,19 @@ class Repository extends ModelRepository
                 if (!$shop || $currentShop->getSecureBaseUrl() > $shop->getSecureBaseUrl()) {
                     $shop = $currentShop;
                 }
+            } elseif (!$shop && $currentShop->getBasePath() . '/' == $requestPath) {
+                /*
+                 * If no shop was found, use the one which basePath equals the requestPath
+                 *
+                 * This is mainly for shops with virtual aliases, which are requested on the baseBath instead
+                 * of the virtual alias.
+                 *
+                 * f.e. basePath: www.subshop1.com      virtual alias: /subshop1
+                 *      if you navigate to www.subshop1.com you would have been redirected
+                 *      to the main shop on www.mainshop.com. Now you get to your subshop.
+                 *
+                 */
+                $shop = $currentShop;
             }
         }
 

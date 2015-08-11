@@ -70,7 +70,9 @@
         return parseFloat(value);
     }
 
-    $.plugin('rangeSlider', {
+    $.plugin('swRangeSlider', {
+
+        alias: 'rangeSlider',
 
         defaults: {
             /**
@@ -156,7 +158,12 @@
             /**
              * The number of steps the slider is divided in.
              */
-            stepCount: 20
+            stepCount: 100,
+
+            /**
+             * Function for calculation
+             */
+            stepCurve: 'linear'
         },
 
         init: function() {
@@ -174,9 +181,21 @@
             me.dragType = 'min';
 
             me.createSliderTemplate();
+            me.validateStepCurve();
 
             me.computeBaseValues();
             me.registerEvents();
+        },
+
+        validateStepCurve: function() {
+            var me = this,
+                validCurves = ['linear', 'log'];
+
+            me.opts.stepCurve = me.opts.stepCurve.toString().toLowerCase();
+
+            if (validCurves.indexOf(me.opts.stepCurve) < 0) {
+                me.opts.stepCurve = 'linear';
+            }
         },
 
         registerEvents: function() {
@@ -187,6 +206,8 @@
 
             me._on($document, 'mouseup touchend', $.proxy(me.onEndDrag, me));
             me._on($document, 'mousemove touchmove', $.proxy(me.slide, me));
+
+            $.publish('plugin/swRangeSlider/onRegisterEvents', me);
         },
 
         createSliderTemplate: function() {
@@ -205,28 +226,37 @@
         },
 
         createRangeContainer: function() {
-            var me = this;
+            var me = this,
+                $container = $('<div>', {
+                    'class': me.opts.sliderContainerCls
+                });
 
-            return $('<div>', {
-                'class': me.opts.sliderContainerCls
-            });
+            $.publish('plugin/swRangeSlider/onCreateRangeContainer', [me, $container]);
+
+            return $container;
         },
 
         createRangeBar: function() {
-            var me = this;
+            var me = this,
+                $bar = $('<div>', {
+                    'class': me.opts.rangeBarCls
+                });
 
-            return $('<div>', {
-                'class': me.opts.rangeBarCls
-            });
+            $.publish('plugin/swRangeSlider/onCreateRangeBar', [me, $bar]);
+
+            return $bar;
         },
 
         createHandle: function(type) {
             var me = this,
-                typeClass = (type == 'max') ? me.opts.handleMaxCls : me.opts.handleMinCls;
+                typeClass = (type == 'max') ? me.opts.handleMaxCls : me.opts.handleMinCls,
+                $handle = $('<div>', {
+                    'class': me.opts.handleCls + ' ' + typeClass
+                });
 
-            return $('<div>', {
-                'class': me.opts.handleCls + ' ' + typeClass
-            });
+            $.publish('plugin/swRangeSlider/onCreateHandle', [me, $handle]);
+
+            return $handle;
         },
 
         computeBaseValues: function() {
@@ -244,12 +274,14 @@
             me.stepSize = me.range / int(me.opts.stepCount);
             me.stepWidth = 100 / int(me.opts.stepCount);
 
-            me.minValue = (me.opts.startMin == me.opts.rangeMin || me.opts.startMin <= me.minRange) ? me.minRange : int(me.opts.startMin);
-            me.maxValue = (me.opts.startMax == me.opts.rangeMax || me.opts.startMax >= me.maxRange) ? me.maxRange : int(me.opts.startMax);
+            me.minValue = (me.opts.startMin === me.opts.rangeMin || me.opts.startMin <= me.minRange) ? me.minRange : int(me.opts.startMin);
+            me.maxValue = (me.opts.startMax === me.opts.rangeMax || me.opts.startMax >= me.maxRange) ? me.maxRange : int(me.opts.startMax);
 
             if (me.maxValue == me.minValue || me.maxValue == 0) {
                 me.maxValue = me.maxRange;
             }
+
+            $.publish('plugin/swRangeSlider/onComputeBaseValues', [me, me.minValue, me.maxValue]);
 
             me.setRangeBarPosition(me.minValue, me.maxValue);
             me.updateLayout();
@@ -259,27 +291,23 @@
             var me = this,
                 min = minValue || me.minValue,
                 max = maxValue || me.maxValue,
-                left = 100 / me.range * (min - me.minRange),
-                width = 100 / me.range * (max - min);
+                left = me.getPositionByValue(min),
+                right = me.getPositionByValue(max),
+                width = right - left;
 
             me.$rangeBar.css({
                 'left': left + '%',
                 'width': width + '%'
             });
-        },
 
-        getMin: function() {
-            return this.minValue;
-        },
-
-        getMax: function() {
-            return this.maxValue;
+            $.publish('plugin/swRangeSlider/onSetRangeBarPosition', [me, me.$rangeBar, minValue, maxValue]);
         },
 
         setMin: function(min, updateInput) {
             var me = this,
                 update = updateInput || false;
 
+            min = (min === me.opts.rangeMin || min <= me.minRange) ? me.minRange : int(min);
             me.minValue = min;
 
             if (update) {
@@ -289,13 +317,17 @@
             me.setRangeBarPosition();
             me.updateLayout();
 
+            /** @deprecated - will be removed in 5.1 */
             $.publish('plugin/rangeSlider/changeMin', min);
+
+            $.publish('plugin/swRangeSlider/onSetMin', [me, min, updateInput]);
         },
 
         setMax: function(max, updateInput) {
             var me = this,
                 update = updateInput || false;
 
+            max = (max === me.opts.rangeMax || max >= me.maxRange) ? me.maxRange : int(max);
             me.maxValue = max;
 
             if (update) {
@@ -305,7 +337,10 @@
             me.setRangeBarPosition();
             me.updateLayout();
 
+            /** @deprecated - will be removed in 5.1 */
             $.publish('plugin/rangeSlider/changeMax', max);
+
+            $.publish('plugin/swRangeSlider/onSetMax', [me, max, updateInput]);
         },
 
         reset: function(param) {
@@ -326,7 +361,10 @@
             me.setRangeBarPosition();
             me.updateLayout();
 
+            /** @deprecated - will be removed in 5.1 */
             $.publish('plugin/rangeSlider/reset');
+
+            $.publish('plugin/swRangeSlider/onReset', [me, param]);
         },
 
         onStartDrag: function(type, $handle) {
@@ -336,50 +374,62 @@
 
             me.dragState = true;
             me.dragType = type;
+
+            $.publish('plugin/swRangeSlider/onStartDrag', [me, type, $handle]);
         },
 
         onEndDrag: function() {
             var me = this;
 
-            if (me.dragState) {
-                me.dragState = false;
-
-                me.updateLayout();
-
-                me.$minHandle.removeClass(me.opts.activeDraggingCls);
-                me.$maxHandle.removeClass(me.opts.activeDraggingCls);
-
-                if (me.dragType == 'max') {
-                    me.updateMaxInput(me.maxValue);
-                } else {
-                    me.updateMinInput(me.minValue);
-                }
-
-                $(me).trigger('rangeChange', me);
-
-                $.publish('plugin/rangeSlider/onChange', me);
+            if (!me.dragState) {
+                return;
             }
+            me.dragState = false;
+
+            me.updateLayout();
+
+            me.$minHandle.removeClass(me.opts.activeDraggingCls);
+            me.$maxHandle.removeClass(me.opts.activeDraggingCls);
+
+            if (me.dragType == 'max') {
+                me.updateMaxInput(me.maxValue);
+            } else {
+                me.updateMinInput(me.minValue);
+            }
+
+            $(me).trigger('rangeChange', me);
+
+            /** @deprecated - will be removed in 5.1 */
+            $.publish('plugin/rangeSlider/onChange', me);
+
+            $.publish('plugin/swRangeSlider/onEndDrag', [me, me.dragType]);
         },
 
         slide: function(event) {
             var me = this;
 
-            if (me.dragState) {
-               var pageX = (event.originalEvent.touches) ? event.originalEvent.touches[0].pageX : event.pageX,
-                   offset = me.$container.offset(),
-                   width = me.$container.innerWidth(),
-                   mouseX = pageX - offset.left,
-                   xPercent = clamp(round((100 / width * mouseX), me.stepWidth, 'round'), 0, 100),
-                   value = (me.range / 100 * xPercent) + me.minRange;
-
-               event.preventDefault();
-
-               if (me.dragType == 'max') {
-                   me.setMax(clamp(value, me.minValue + me.stepSize * 2, me.maxRange));
-               } else {
-                   me.setMin(clamp(value, me.minRange, me.maxValue - me.stepSize * 2));
-               }
+            if (!me.dragState) {
+                return;
             }
+
+            var pageX = (event.originalEvent.touches) ? event.originalEvent.touches[0].pageX : event.pageX,
+                offset = me.$container.offset(),
+                width = me.$container.innerWidth(),
+                mouseX = pageX - offset.left,
+                xPercent = clamp(round((100 / width * mouseX), me.stepWidth, 'round'), 0, 100),
+                value = me.getValueByPosition(xPercent);
+
+            event.preventDefault();
+
+            if (me.dragType == 'max') {
+                var minValue = me.getValueByPosition(me.getPositionByValue(me.minValue) + me.stepWidth);
+                me.setMax(clamp(value, minValue, me.maxRange));
+            } else {
+                var maxValue = me.getValueByPosition(me.getPositionByValue(me.maxValue) - me.stepWidth);
+                me.setMin(clamp(value, me.minRange, maxValue));
+            }
+
+            $.publish('plugin/swRangeSlider/onSlide', [me, event, xPercent, value]);
         },
 
         updateMinInput: function(value) {
@@ -389,6 +439,8 @@
                 me.$minInputEl.val(value.toFixed(2))
                     .removeAttr('disabled')
                     .trigger('change');
+
+                $.publish('plugin/swRangeSlider/onUpdateMinInput', [me, me.$minInputEl, value]);
             }
         },
 
@@ -399,6 +451,8 @@
                 me.$maxInputEl.val(value.toFixed(2))
                     .removeAttr('disabled')
                     .trigger('change');
+
+                $.publish('plugin/swRangeSlider/onUpdateMaxInput', [me, me.$maxInputEl, value]);
             }
         },
 
@@ -407,6 +461,8 @@
 
             if (me.$minLabel.length) {
                 me.$minLabel.html(me.formatValue(value));
+
+                $.publish('plugin/swRangeSlider/onUpdateMinLabel', [me, me.$minLabel, value]);
             }
         },
 
@@ -415,6 +471,8 @@
 
             if (me.$maxLabel.length) {
                 me.$maxLabel.html(me.formatValue(value));
+
+                $.publish('plugin/swRangeSlider/onUpdateMaxLabel', [me, me.$maxLabel, value]);
             }
         },
 
@@ -425,10 +483,32 @@
 
             me.updateMinLabel(min);
             me.updateMaxLabel(max);
+
+            $.publish('plugin/swRangeSlider/onUpdateLayout', [me, minValue, maxValue]);
+        },
+
+        roundValue: function(value) {
+            var me = this;
+
+            if (value < 10) {
+                value = me.roundTo(value, 0.10);
+            } else if (value < 100) {
+                value = me.roundTo(value, 1);
+            } else {
+                value = me.roundTo(value, 5);
+            }
+
+            return value;
         },
 
         formatValue: function(value) {
             var me = this;
+
+            $.publish('plugin/swRangeSlider/onFormatValueBefore', [me, value]);
+
+            if (value != me.minRange && value != me.maxRange) {
+                value = me.roundValue(value);
+            }
 
             if (!me.opts.labelFormat.length) {
                 return value.toFixed(2);
@@ -437,14 +517,102 @@
             value = Math.round(value * 100) / 100;
             value = value.toFixed(2);
 
-            if (me.opts.labelFormat.indexOf('0.00') > 0) {
+            if (me.opts.labelFormat.indexOf('0.00') >= 0) {
                 value = me.opts.labelFormat.replace('0.00', value);
             } else {
                 value = value.replace('.', ',');
                 value = me.opts.labelFormat.replace('0,00', value);
             }
 
+            $.publish('plugin/swRangeSlider/onFormatValue', [me, value]);
+
             return value;
+        },
+
+        roundTo: function(value, num) {
+            var resto = value%num;
+
+            if (resto <= (num/2)) {
+                return value - resto;
+            } else {
+                return value + num - resto;
+            }
+        },
+
+        getPositionByValue: function(value) {
+            var me = this;
+
+            if(me.opts.stepCurve == 'log') {
+                return me._getPositionLog(value);
+            }
+
+            return me._getPositionLinear(value);
+        },
+
+        _getPositionLog: function(value) {
+            var me = this,
+                minp = 0,
+                maxp = me.opts.stepCount,
+                minv = Math.log(me.opts.rangeMin),
+                maxv = Math.log(me.opts.rangeMax),
+                scale = (maxv-minv) / (maxp-minp),
+                pos = minp + (Math.log(value) - minv) / scale;
+
+            pos = Math.round(pos * me.stepWidth);
+
+            return pos > 0 && pos || 0;
+        },
+
+        _getPositionLinear: function(value) {
+            var me = this;
+
+            return 100 / me.range * (value - me.minRange);
+        },
+
+        getValueByPosition: function(position) {
+            var me = this;
+
+            if(me.opts.stepCurve == 'log') {
+                return me._getValueLog(position);
+            }
+
+            return me._getValueLinear(position);
+        },
+
+        _getValueLinear: function(position) {
+            var me = this;
+
+            return (me.range / 100 * position) + me.minRange;
+        },
+
+        _getValueLog: function(position) {
+            var me = this;
+
+            if (position === 0) {
+                return me.minRange;
+            } else if (position === 100) {
+                return me.maxRange;
+            }
+
+            var minp = 0,
+                maxp = me.opts.stepCount,
+                minv = Math.log(me.opts.rangeMin),
+                maxv = Math.log(me.opts.rangeMax),
+                scale = (maxv-minv) / (maxp-minp);
+
+            position = position / me.stepWidth;
+
+            return Math.exp(minv + scale*(position-minp));
+        },
+
+        getStepWidth: function(value) {
+            var me = this;
+
+            if (me.opts.stepCurve == 'log') {
+                return value;
+            }
+
+            return me.stepWidth;
         },
 
         destroy: function() {

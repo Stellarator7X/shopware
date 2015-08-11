@@ -52,7 +52,9 @@
      * <a href="?p=1&l=list" data-action-link="true">list view</a>
      *
      */
-    $.plugin('listingActions', {
+    $.plugin('swListingActions', {
+
+        alias: 'listingActions',
 
         defaults: {
 
@@ -223,6 +225,8 @@
                     exit: exitFn
                 }
             ]);
+
+            $.publish('plugin/swListingActions/onInitStateHandling', me);
         },
 
         /**
@@ -240,6 +244,8 @@
             me.$filterCont.removeClass(opts.collapsedCls);
 
             me.$filterTrigger.removeClass(opts.activeCls);
+
+            $.publish('plugin/swListingActions/onEnterMobile', me);
         },
 
         /**
@@ -257,6 +263,8 @@
             if (Object.keys(me.activeFilterElements).length) {
                 me.$activeFilterCont.addClass(me.opts.disabledCls);
             }
+
+            $.publish('plugin/swListingActions/onExitMobile', me);
         },
 
         /**
@@ -274,6 +282,8 @@
             me._on($body, 'click', $.proxy(me.onBodyClick, me));
 
             me.$el.on(me.getEventName('click'), '.' + me.opts.activeFilterCls, $.proxy(me.onActiveFilterClick, me));
+
+            $.publish('plugin/swListingActions/onRegisterEvents', me);
         },
 
         /**
@@ -290,6 +300,8 @@
                 categoryParams = me.setCategoryParamsFromData(formData);
 
             me.applyCategoryParams(categoryParams);
+
+            $.publish('plugin/swListingActions/onFilterSubmit', [me, event]);
         },
 
         /**
@@ -307,6 +319,8 @@
                 categoryParams = me.setCategoryParamsFromData(formData, true);
 
             me.applyCategoryParams(categoryParams);
+
+            $.publish('plugin/swListingActions/onActionSubmit', [me, event]);
         },
 
         /**
@@ -326,6 +340,8 @@
             me.applyCategoryParams(
                 me.setCategoryParamsFromUrlParams(linkParams)
             );
+
+            $.publish('plugin/swListingActions/onActionLink', [me, event]);
         },
 
         /**
@@ -348,6 +364,8 @@
             } else {
                 me.openFilterPanel();
             }
+
+            $.publish('plugin/swListingActions/onFilterTriggerClick', [me, event]);
         },
 
         /**
@@ -361,9 +379,11 @@
 
             if (!$target.is(me.opts.filterComponentSelector + ', ' + me.opts.filterComponentSelector + ' *')) {
                 $.each(me.$filterComponents, function(index, item) {
-                    $(item).data('plugin_filterComponent').close();
+                    $(item).data('plugin_swFilterComponent').close();
                 });
             }
+
+            $.publish('plugin/swListingActions/onBodyClick', [me, event]);
         },
 
         /**
@@ -372,10 +392,8 @@
          * component values to the category params.
          *
          * @param event
-         * @param component
-         * @param $el
          */
-        onComponentChange: function(event, component, $el) {
+        onComponentChange: function(event) {
             var me = this,
                 formData = me.$filterForm.serializeArray(),
                 categoryParams = me.setCategoryParamsFromData(formData),
@@ -385,7 +403,9 @@
 
             me.$applyFilterBtn.addClass(me.opts.loadingClass);
 
-            me.buffer($.proxy(me.getFilterResult, me, urlParams), me.opts.bufferTime)
+            me.buffer($.proxy(me.getFilterResult, me, urlParams), me.opts.bufferTime);
+
+            $.publish('plugin/swListingActions/onComponentChange', [me, event]);
         },
 
         /**
@@ -415,6 +435,8 @@
                 me.removeActiveFilter(param);
                 me.resetFilterProperty(param);
             }
+
+            $.publish('plugin/swListingActions/onActiveFilterClick', [me, event]);
         },
 
         getPropertyFieldNames: function() {
@@ -430,6 +452,8 @@
                     me.propertyFieldNames.push(fieldName);
                 }
             });
+
+            $.publish('plugin/swListingActions/onGetPropertyFieldNames', [me, me.propertyFieldNames]);
 
             return me.propertyFieldNames;
         },
@@ -454,7 +478,11 @@
                 return $.extend(me.categoryParams, tempParams);
             }
 
-            return me.categoryParams = tempParams;
+            me.categoryParams = tempParams;
+
+            $.publish('plugin/swListingActions/onSetCategoryParamsFromData', [me, tempParams]);
+
+            return tempParams;
         },
 
         /**
@@ -464,9 +492,12 @@
          */
         setCategoryParamsFromTopLocation: function() {
             var me = this,
-                urlParams = decodeURI(window.location.search).substr(1);
+                urlParams = decodeURI(window.location.search).substr(1),
+                categoryParams = me.setCategoryParamsFromUrlParams(urlParams);
 
-            return me.setCategoryParamsFromUrlParams(urlParams);
+            $.publish('plugin/swListingActions/onSetCategoryParamsFromData', [me, categoryParams]);
+
+            return categoryParams;
         },
 
         /**
@@ -476,34 +507,44 @@
          * @returns {{}|*}
          */
         setCategoryParamsFromUrlParams: function(urlParamString) {
+            var me = this,
+                categoryParams,
+                params;
 
             if (urlParamString.length <= 0) {
-                return {};
+                categoryParams = {};
+
+                $.publish('plugin/swListingActions/onSetCategoryParamsFromUrlParams', [me, categoryParams]);
+
+                return categoryParams;
             }
 
-            var me = this,
-                urlParams = decodeURIComponent(urlParamString),
-                params = urlParams.split('&');
+            categoryParams = me.categoryParams;
+            params = urlParamString.split('&');
 
             $.each(params, function(index, item) {
                 var param = item.split('=');
 
+                param = $.map(param, function(val) { return decodeURIComponent(val); });
+
                 if (param[1] == 'reset') {
-                    delete me.categoryParams[param[0]];
+                    delete categoryParams[param[0]];
 
                 } else if (me.propertyFieldNames.indexOf(param[0]) != -1) {
                     var properties = param[1].split('|');
 
                     $.each(properties, function(index, property) {
-                        me.categoryParams[me.opts.propertyPrefixChar + param[0] + me.opts.propertyPrefixChar + property] = property;
+                        categoryParams[me.opts.propertyPrefixChar + param[0] + me.opts.propertyPrefixChar + property] = property;
                     });
 
                 } else {
-                    me.categoryParams[param[0]] = param[1];
+                    categoryParams[param[0]] = param[1];
                 }
             });
 
-            return me.categoryParams;
+            $.publish('plugin/swListingActions/onSetCategoryParamsFromUrlParams', [me, categoryParams]);
+
+            return categoryParams;
         },
 
         /**
@@ -518,6 +559,8 @@
                 urlParams = me.createUrlParams(params);
 
             me.applyUrlParams(urlParams);
+
+            $.publish('plugin/swListingActions/onApplyCategoryParams', [me, categoryParams]);
         },
 
         /**
@@ -528,12 +571,26 @@
          */
         createUrlParams: function(categoryParams) {
             var me = this,
-                params = categoryParams || me.categoryParams,
-                filterParams = '', propertyParams = {};
+                categoryParams = categoryParams || me.categoryParams,
+                params = me.cleanParams(categoryParams),
+                filterList = [];
 
             $.each(params, function(key, value) {
-                var urlParamChar = (filterParams.length > 0) ? '&' : '?';
+                filterList.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+            });
 
+            me.urlParams = '?' + filterList.join('&');
+
+            $.publish('plugin/swListingActions/onCreateUrlParams', [me, me.urlParams]);
+
+            return me.urlParams;
+        },
+
+        cleanParams: function(params) {
+            var me = this,
+                propertyParams = {};
+
+            $.each(params, function(key, value) {
                 if (key.substr(0, 2) == me.opts.propertyPrefixChar) {
                     var propertyKey = key.split(me.opts.propertyPrefixChar)[1];
 
@@ -543,15 +600,11 @@
                         propertyParams[propertyKey] = value;
                     }
                 } else {
-                    filterParams += urlParamChar + key + '=' + value;
+                    propertyParams[key] = value;
                 }
             });
 
-            $.each(propertyParams, function(key, value) {
-                filterParams += '&' + key + '=' + value;
-            });
-
-            return me.urlParams = filterParams;
+            return propertyParams;
         },
 
         /**
@@ -563,7 +616,9 @@
             var me = this,
                 params = urlParams || me.urlParams;
 
-            window.location.href = me.getListingUrl(params, true);
+            window.location.href = me.getListingUrl(params, false);
+
+            $.publish('plugin/swListingActions/onApplyUrlParams', [me, urlParams]);
         },
 
         /**
@@ -576,13 +631,18 @@
          */
         getListingUrl: function(urlParams, encode) {
             var me = this,
-                params = urlParams || me.urlParams;
+                params = urlParams || me.urlParams,
+                url;
 
             if (encode) {
-                return encodeURI(me.controllerURL + params);
+                url = encodeURI(me.controllerURL + params);
+            } else {
+                url = me.controllerURL + params;
             }
 
-            return me.controllerURL + params;
+            $.publish('plugin/listingActions/onApplyUrlParams', [me, url, urlParams, encode]);
+
+            return url;
         },
 
         /**
@@ -599,13 +659,19 @@
             }
 
             me.bufferTimeout = setTimeout(func, bufferTime);
+
+            $.publish('plugin/swListingActions/onBuffer', [me, me.bufferTimeout, func, bufferTime]);
         },
 
         /**
          * Resets the current buffer timeout.
          */
         resetBuffer: function() {
-            this.bufferTimeout = 0;
+            var me = this;
+
+            me.bufferTimeout = 0;
+
+            $.publish('plugin/swListingActions/onResetBuffer', [me, me.bufferTimeout]);
         },
 
         /**
@@ -628,8 +694,12 @@
                     me.$applyFilterBtn.removeClass(me.opts.loadingClass);
 
                     me.updateFilterButton(response.totalCount);
+
+                    $.publish('plugin/swListingActions/onGetFilterResultFinished', [me, response, params]);
                 }
             });
+
+            $.publish('plugin/swListingActions/onGetFilterResult', [me, params]);
         },
 
         /**
@@ -648,6 +718,8 @@
             } else {
                 me.$applyFilterBtn.removeAttr('disabled');
             }
+
+            $.publish('plugin/swListingActions/onUpdateFilterButton', [me, count]);
         },
 
         /**
@@ -657,7 +729,11 @@
          * @param activeFilterCount
          */
         updateFilterTriggerButton: function(activeFilterCount) {
-            this.$filterTriggerIcon.html(activeFilterCount || '');
+            var me = this;
+
+            me.$filterTriggerIcon.html(activeFilterCount || '');
+
+            $.publish('plugin/swListingActions/onUpdateFilterTriggerButton', [me, activeFilterCount]);
         },
 
         /**
@@ -690,6 +766,8 @@
 
             me.$filterCont.toggleClass(me.opts.hasActiveFilterCls, (count > 0));
             me.$activeFilterCont.toggleClass(me.opts.disabledCls, !me.$filterCont.hasClass(me.opts.collapsedCls));
+
+            $.publish('plugin/swListingActions/onCreateActiveFiltersFromCategoryParams', [me, categoryParams]);
         },
 
         /**
@@ -711,6 +789,8 @@
                     me.createActiveFilterElement(param, label);
                 }
             }
+
+            $.publish('plugin/swListingActions/onCreateActiveFilter', [me, param, value]);
         },
 
         /**
@@ -727,6 +807,8 @@
                 'html': me.getLabelIcon() + label,
                 'data-filter-param': param
             }).appendTo(me.$activeFilterCont);
+
+            $.publish('plugin/swListingActions/onCreateActiveFilterElement', [me, param, label]);
         },
 
         /**
@@ -739,6 +821,8 @@
             var me = this;
 
             me.activeFilterElements[param].html(me.getLabelIcon() + label);
+
+            $.publish('plugin/swListingActions/onUpdateActiveFilterElement', [me, param, label]);
         },
 
         /**
@@ -752,6 +836,8 @@
             me.activeFilterElements[param].remove();
 
             delete me.activeFilterElements[param];
+
+            $.publish('plugin/swListingActions/onRemoveActiveFilter', [me, param]);
         },
 
         /**
@@ -761,22 +847,23 @@
          * @param param
          */
         resetFilterProperty: function(param) {
-            var me = this;
+            var me = this,
+                $input,
+                rangeSlider;
 
             if (param == 'rating') {
                 me.$el.find('#star--reset').prop('checked', true).trigger('change');
-                return;
-            }
-
-            var $input = me.$el.find('[name="'+param+'"]');
-
-            if ($input.is('[data-range-input]')) {
-                var rangeSlider = $input.parents('[data-range-slider="true"]').data('plugin_rangeSlider');
-                    rangeSlider.reset($input.attr('data-range-input'));
-
             } else {
-                $input.removeAttr('checked').trigger('change');
+                $input = me.$el.find('[name="'+me.escapeDoubleQuotes(param)+'"]');
+                if ($input.is('[data-range-input]')) {
+                    rangeSlider = $input.parents('[data-range-slider="true"]').data('plugin_swRangeSlider');
+                    rangeSlider.reset($input.attr('data-range-input'));
+                } else {
+                    $input.removeAttr('checked').trigger('change');
+                }
             }
+
+            $.publish('plugin/swListingActions/onResetFilterProperty', [me, param]);
         },
 
         /**
@@ -795,9 +882,8 @@
 
             if (param == 'rating' && value > 0) {
                 labelText = me.createStarLabel(value);
-
             } else {
-                $label = me.$filterForm.find('label[for="'+param+'"]');
+                $label = me.$filterForm.find('label[for="'+me.escapeDoubleQuotes(param)+'"]');
 
                 if ($label.is('[data-range-label]')) {
                     labelText = $label.prev('span').html() + $label.html();
@@ -808,7 +894,18 @@
                 }
             }
 
+            $.publish('plugin/swListingActions/onCreateActiveFilterLabel', [me, labelText, param, value]);
+
             return labelText;
+        },
+
+        /**
+         * Only escapes a " if it's not already escaped
+         * @param string str
+         * @returns string
+         */
+        escapeDoubleQuotes: function (str) {
+            return str.replace(/\\([\s\S])|(")/g,"\\$1$2");
         },
 
         /**
@@ -818,7 +915,9 @@
          * @returns {string}
          */
         createStarLabel: function(stars) {
-            var label = '', i = 0;
+            var me = this,
+                label = '',
+                i = 0;
 
             for (i; i < 5; i++) {
                 if (i < stars) {
@@ -827,6 +926,8 @@
                     label += '<i class="icon--star-empty"></i>';
                 }
             }
+
+            $.publish('plugin/swListingActions/onCreateStarLabel', [me, label, stars]);
 
             return label;
         },
@@ -838,7 +939,12 @@
          * @returns {string}
          */
         getLabelIcon: function() {
-            return '<span class="' + this.opts.activeFilterIconCls + '"></span>';
+            var me = this,
+                icon = '<span class="' + me.opts.activeFilterIconCls + '"></span>';
+
+            $.publish('plugin/swListingActions/onCreateStarLabel', [me, icon]);
+
+            return icon;
         },
 
         /**
@@ -855,6 +961,8 @@
             me.$activeFilterCont.removeClass(me.opts.disabledCls);
             me.$filterCont.addClass(me.opts.collapsedCls);
             me.$filterTrigger.addClass(me.opts.activeCls);
+
+            $.publish('plugin/swListingActions/onOpenFilterPanel', me);
         },
 
         /**
@@ -871,6 +979,8 @@
             me.$activeFilterCont.addClass(me.opts.disabledCls);
             me.$filterCont.removeClass(me.opts.collapsedCls);
             me.$filterTrigger.removeClass(me.opts.activeCls);
+
+            $.publish('plugin/swListingActions/onCloseFilterPanel', me);
         },
 
         /**

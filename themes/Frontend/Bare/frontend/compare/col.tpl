@@ -11,12 +11,22 @@
                         <a href="{$sArticle.linkDetails|rewrite:$sArticle.articleName}" title="{$sArticle.articleName|escape}" class="box--image">
                             <span class="image--element">
                                 <span class="image--media">
+
+                                    {$desc = $sArticle.articleName|escape}
+
                                     {if isset($sArticle.image.thumbnails)}
+
+                                        {if $sArticle.image.description}
+                                            {$desc = $sArticle.image.description|escape}
+                                        {/if}
+
                                         <img srcset="{$sArticle.image.thumbnails[0].sourceSet}"
-                                             alt="{$sArticle.articleName|escape}" />
+                                             alt="{$desc}"
+                                             title="{$desc|truncate:25:""}" />
                                     {else}
                                         <img src="{link file='frontend/_public/src/img/no-picture.jpg'}"
-                                             alt="{$sArticle.articleName|escape}">
+                                             alt="{$desc}"
+                                             title="{$desc|truncate:25:""}" />
                                     {/if}
                                 </span>
                             </span>
@@ -53,7 +63,7 @@
                     <li class="list--entry entry--price">
                         {* Article pseudoprice *}
                         {block name='frontend_compare_price_pseudoprice'}
-                            {if $sArticle.pseudoprice|number > $sArticle.price|number}
+                            {if $sArticle.has_pseudoprice}
                                 <span class="price--pseudoprice">
                                     {s name="reducedPrice" namespace="frontend/listing/box_article"}{/s} {$sArticle.pseudoprice|currency}
                                     {s name="Star" namespace="frontend/listing/box_article"}{/s}<br />
@@ -63,7 +73,7 @@
 
                         {* Article normal or discount price *}
                         {block name='frontend_compare_price_normal'}
-                            <span class="price--normal{if $sArticle.pseudoprice|number > $sArticle.price|number} price--reduced{/if}">
+                            <span class="price--normal{if $sArticle.has_pseudoprice} price--reduced{/if}">
                                 {if $sArticle.priceStartingFrom}
                                     {s name="ComparePriceFrom"}{/s}
                                 {/if}

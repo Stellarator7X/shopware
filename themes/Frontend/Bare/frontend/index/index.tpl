@@ -12,6 +12,9 @@
 {/block}
 
 <body class="is--ctl-{controllerName} is--act-{controllerAction}{if $sUserLoggedIn} is--user{/if}{if $sTarget} is--target-{$sTarget}{/if}{if $theme.checkoutHeader && ( ({controllerName} == "checkout" && {controllerAction} != "cart") || {controllerName} == "register" ) } is--minimal-header{/if}{if !$theme.displaySidebar} is--no-sidebar{/if}">
+
+    {block name='frontend_index_after_body'}{/block}
+
 	<div class="page-wrap">
 
 		{* Message if javascript is disabled *}
@@ -130,21 +133,13 @@
 		{block name='frontend_index_body_inline'}{/block}
 	</div>
 
-{* Include jQuery and all other javascript files at the bottom of the page *}
-{block name="frontend_index_header_javascript_jquery_lib"}
-	{compileJavascript timestamp={themeTimestamp} output="javascriptFiles"}
-	{foreach $javascriptFiles as $file}
-		<script src="{$file}"></script>
-	{/foreach}
-{/block}
-
 {block name="frontend_index_header_javascript"}
     <script type="text/javascript">
         //<![CDATA[
         {block name="frontend_index_header_javascript_inline"}
             var timeNow = {time() nocache};
 
-            jQuery.controller =  {ldelim}
+            var controller = controller || {ldelim}
                 'vat_check_enabled': '{config name='vatcheckendabled'}',
                 'vat_check_required': '{config name='vatcheckrequired'}',
                 'ajax_cart': '{url controller='checkout' action='ajaxCart'}',
@@ -159,7 +154,11 @@
                 'ajax_cart_refresh': '{url controller="checkout" action="ajaxAmount"}'
             {rdelim};
 
-            jQuery.themeConfig = {ldelim}
+            var snippets = snippets || {ldelim}
+                'noCookiesNotice': '{s name="IndexNoCookiesNotice"}{/s}'
+            {rdelim};
+
+            var themeConfig = themeConfig || {ldelim}
                 'offcanvasOverlayPage': '{$theme.offcanvasOverlayPage}'
             {rdelim};
 
@@ -175,6 +174,7 @@
                     'articleId': ~~('{$sArticle.articleID}'),
                     'linkDetailsRewritten': '{$sArticle.linkDetailsRewrited}',
                     'articleName': '{$sArticle.articleName|escape:"javascript"}',
+                    'imageTitle': '{$sArticle.image.description|escape:"javascript"}',
                     'images': {ldelim}
 						{foreach $sArticle.image.thumbnails as $key => $image}
 							'{$key}': {ldelim}
@@ -190,15 +190,23 @@
         //]]>
 	</script>
 
-	{block name="frontend_index_header_javascript_jquery"}
-		{* Add the partner statistics widget, if configured *}
-		{if !{config name=disableShopwareStatistics} }
-			{include file='widgets/index/statistic_include.tpl'}
-		{/if}
-	{/block}
-
     {if $theme.additionalJsLibraries}
         {$theme.additionalJsLibraries}
+    {/if}
+{/block}
+
+{* Include jQuery and all other javascript files at the bottom of the page *}
+{block name="frontend_index_header_javascript_jquery_lib"}
+    {compileJavascript timestamp={themeTimestamp} output="javascriptFiles"}
+    {foreach $javascriptFiles as $file}
+        <script src="{$file}"></script>
+    {/foreach}
+{/block}
+
+{block name="frontend_index_header_javascript_jquery"}
+    {* Add the partner statistics widget, if configured *}
+    {if !{config name=disableShopwareStatistics} }
+        {include file='widgets/index/statistic_include.tpl'}
     {/if}
 {/block}
 </body>

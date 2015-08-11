@@ -323,6 +323,24 @@
         _plugins: {},
 
         /**
+         * Collection of all plugins that should be initialized when the DOM is ready
+         *
+         * @private
+         * @property _pluginQueue
+         * @type {Object}
+         */
+        _pluginQueue: {},
+
+        /**
+         * Flag whether the queued plugins were initialized or not
+         *
+         * @private
+         * @property _pluginsInitialized
+         * @type {Boolean}
+         */
+        _pluginsInitialized: false,
+
+        /**
          * Current breakpoint type
          *
          * @private
@@ -380,6 +398,8 @@
             me._checkResize();
             me._browserDetection();
             me._setDeviceCookie();
+
+            $($.proxy(me.initQueuedPlugins, me, true));
 
             return me;
         },
@@ -574,6 +594,7 @@
          */
         addPlugin: function (selector, pluginName, config, viewport) {
             var me = this,
+                pluginsInitialized = me._pluginsInitialized,
                 breakpoints = me._breakpoints,
                 currentState = me._currentState,
                 len,
@@ -600,9 +621,16 @@
             for (i = 0, len = viewport.length; i < len; i++) {
                 me._addPluginOption(viewport[i], selector, pluginName, config);
 
-                if (currentState === viewport[i]) {
-                    me._initPlugin(selector, pluginName);
+                if (currentState !== viewport[i]) {
+                    continue;
                 }
+
+                if (pluginsInitialized) {
+                    me._initPlugin(selector, pluginName);
+                    continue;
+                }
+
+                me.addPluginToQueue(selector, pluginName);
             }
 
             return me;
@@ -650,6 +678,10 @@
                 delete sel[pluginName];
             }
 
+            if (!me._pluginsInitialized) {
+                me.removePluginFromQueue(selector, pluginName);
+            }
+
             return me;
         },
 
@@ -662,7 +694,6 @@
          * @returns {StateManager}
          */
         updatePlugin: function (selector, pluginName) {
-
             var me = this,
                 state = me._currentState,
                 pluginConfigs = me._plugins[state][selector] || {},
@@ -703,12 +734,97 @@
          */
         _initPlugin: function (selector, pluginName) {
             var me = this,
-                $el = $(selector),
+                $el = $(selector);
+
+            if ($el.length > 1) {
+                $.each($el, function () {
+                    me._initSinglePlugin($(this), selector, pluginName);
+                });
+                return;
+            }
+
+            me._initSinglePlugin($el, selector, pluginName);
+        },
+
+        /**
+         * @public
+         * @method addPluginToQueue
+         * @param {String} selector
+         * @param {String} pluginName
+         */
+        addPluginToQueue: function (selector, pluginName) {
+            var me = this,
+                queue = me._pluginQueue,
+                pluginNames = queue[selector] || (queue[selector] = []);
+
+            if (pluginNames.indexOf(pluginName) === -1) {
+                pluginNames.push(pluginName);
+            }
+        },
+
+        /**
+         * @public
+         * @method removePluginFromQueue
+         * @param {String} selector
+         * @param {String} pluginName
+         */
+        removePluginFromQueue: function (selector, pluginName) {
+            var me = this,
+                queue = me._pluginQueue,
+                pluginNames = queue[selector],
+                index;
+
+            if (pluginNames && (index = pluginNames.indexOf(pluginName)) !== -1) {
+                pluginNames.splice(index, 1);
+            }
+        },
+
+        /**
+         * @public
+         * @method initQueuedPlugins
+         * @param {Boolean} clearQueue
+         */
+        initQueuedPlugins: function (clearQueue) {
+            var me = this,
+                queue = me._pluginQueue,
+                selectors = Object.keys(queue),
+                selectorLen = selectors.length,
+                i = 0,
+                selector,
+                plugins,
+                pluginLen,
+                j;
+
+            for (; i < selectorLen; i++) {
+                selector = selectors[i];
+                plugins = queue[selector];
+
+                for (j = 0, pluginLen = plugins.length; j < pluginLen; j++) {
+                    me._initPlugin(selector, plugins[j]);
+                }
+
+                if (clearQueue !== false) {
+                    delete queue[selector];
+                }
+            }
+
+            me._pluginsInitialized = true;
+        },
+
+        /**
+         * @private
+         * @method _initSinglePlugin
+         * @param {Object} element
+         * @param {String} selector
+         * @param {String} pluginName
+         */
+        _initSinglePlugin: function (element, selector, pluginName) {
+            var me = this,
                 currentConfig = me._getPluginConfig(me._currentState, selector, pluginName),
-                plugin = $el.data('plugin_' + pluginName);
+                plugin = element.data('plugin_' + pluginName);
 
             if (!plugin) {
-                $el[pluginName](currentConfig);
+                element[pluginName](currentConfig);
                 return;
             }
 
@@ -719,9 +835,9 @@
                 return;
             }
 
-            me.destroyPlugin($el, pluginName);
+            me.destroyPlugin(element, pluginName);
 
-            $el[pluginName](currentConfig);
+            element[pluginName](currentConfig);
         },
 
         /**
@@ -974,7 +1090,8 @@
                 len = $el.length,
                 i = 0,
                 $currentEl,
-                plugin;
+                plugin,
+                alias;
 
             if (!len) {
                 return;
@@ -984,6 +1101,10 @@
                 $currentEl = $($el[i]);
 
                 if ((plugin = $currentEl.data(name))) {
+                    if (alias = plugin.alias) {
+                        $currentEl.removeData('plugin_' + alias);
+                    }
+
                     plugin.destroy();
                     $currentEl.removeData(name);
                 }
@@ -1163,6 +1284,7 @@
             detections['is--webkit']    = me._checkUserAgent(/webkit/);
             detections['is--safari']    = !detections['is--chrome'] && me._checkUserAgent(/safari/);
             detections['is--ie']        = !detections['is--opera'] && (me._checkUserAgent(/msie/) || me._checkUserAgent(/trident\/7/));
+            detections['is--ie-touch']  = detections['is--ie'] && me._checkUserAgent(/touch/);
             detections['is--gecko']     = !detections['is--webkit'] && me._checkUserAgent(/gecko/);
 
             $.each(detections, function(key, value) {

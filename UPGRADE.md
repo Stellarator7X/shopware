@@ -1,7 +1,14 @@
 # Shopware Upgrade Information
 In this document you will find a changelog of the important changes related to the code base of Shopware.
 
+## 5.0.3
+* The variant API resource now supports the getList method. It will return all variants with prices and attributes. You can optionally calculate the gross price by using the "considerTaxInput" parameter.
+* The getList method of the articles API resource now returns additionally the attributes of an article.
+* Change event argument property `name` to `vouchername` in `Shopware_Modules_Basket_AddVoucher_FilterSql` in `sBasket.php` due to reserved word.
+* Support for batch user deleting in Backend UserManager
+
 ## 5.0.2
+* Added `createMediaField` to Emotion Component Model
 * Method `createMenuItem` in plugin bootstrap now results in an duplicate error when passing an existing label with the same parent
 * Removed `Shopware_Controllers_Backend_Order::getStatisticAction` and statistics in the order backend module.
 * It's no longer possible to have spaces in article numbers. Existing articles with spaces in their numbers will still work, but the article cannot be changed without fixing the number.
@@ -9,6 +16,72 @@ In this document you will find a changelog of the important changes related to t
 * Introduce new configuration option `snippet.showSnippetPlaceholder`. Empty snippets are now hidden by default. If `showSnippetPlaceholder` is `true` snippet placeholders will be shown.
 * Removed table `s_emarketing_vouchers_cashed`.
 * 'Shopware.form.field.ArticleSearch' search using the "variants" option is deprecated. Use "configurator" to load configurator articles or "searchVariants" to load article variants with the correct additional text and ordernumber.
+* Added column `added` to the table `s_campaigns_mailaddresses` which holds the date of the newsletter registration. It will be displayed in the newsletter administration under "Recipients" as the "Double-Opt-In date" column.
+* Removed the expert layout and the corresponding mail form inside the batch processing window of the order backend module.
+* Added support for attributes in backend module site
+* Added a lot more jQuery plugin events.
+* Marked some jQuery plugin events as deprecated which will be removed in the version 5.1. They were replaced with more conventional names:
+    * plugin/collapseCart/afterRemoveArticle    => plugin/swCollapseCart/onRemoveArticleFinished
+    * plugin/collapseCart/afterLoadCart         => plugin/swCollapseCart/onLoadCartFinished
+    * plugin/collapseCart/onMouseLeave          => plugin/swCollapseCart/onMouseLeave
+    * plugin/collapseCart/onCloseButton         => plugin/swCollapseCart/onCloseButton
+    * plugin/collapseCart/onRemoveArticle       => plugin/swCollapseCart/onRemoveArticle
+    * plugin/collapseCart/onMenuOpen            => plugin/swCollapseCart/onMenuOpen
+    * plugin/collapseCart/onLoadCart            => plugin/swCollapseCart/onLoadCart
+    * plugin/collapseCart/onCloseMenu           => plugin/swCollapseCart/onCloseMenu
+    * plugin/collapsePanel/onOpen               => plugin/swCollapsePanel/onOpen
+    * plugin/collapsePanel/onClose              => plugin/swCollapsePanel/onClose
+    * plugin/filterComponent/onChange           => plugin/swFilterComponent/onChange
+    * plugin/emotionLoader/loadEmotion          => plugin/swEmotionLoader/onLoadEmotion
+    * plugin/emotionLoader/initEmotion          => plugin/swEmotionLoader/onInitEmotion
+    * plugin/emotionLoader/showEmotion          => plugin/swEmotionLoader/onShowEmotion
+    * plugin/emotionLoader/hideEmotion          => plugin/swEmotionLoader/onHideEmotion
+    * plugin/emotionLoader/showFallbackContent  => plugin/swEmotionLoader/onShowFallbackContent
+    * plugin/emotionLoader/hideFallbackContent  => plugin/swEmotionLoader/onHideFallbackContent
+    * plugin/emotion/initElements               => plugin/swEmotion/onInitElements
+    * plugin/emotion/initFullscreen             => plugin/swEmotion/onInitFullscreen
+    * plugin/emotion/removeFullscreen           => plugin/swEmotion/onRemoveFullscreen
+    * plugin/emotion/initMasonryGrid            => plugin/swEmotion/onInitMasonryGrid
+    * plugin/emotion/initScaleGrid              => plugin/swEmotion/onInitScaleGrid
+    * plugin/emotion/registerEvents             => plugin/swEmotion/onRegisterEvents
+    * plugin/imageSlider/updateTransform        => plugin/swImageSlider/onUpdateTransform
+    * plugin/imageSlider/slide                  => plugin/swImageSlider/onSlide
+    * plugin/imageSlider/slideNext              => plugin/swImageSlider/onSlideNext
+    * plugin/imageSlider/slidePrev              => plugin/swImageSlider/onSlidePrev
+    * plugin/menuScroller/updateResize          => plugin/swMenuScroller/onUpdateResize
+    * plugin/offcanvasMenu/beforeOpenMenu       => plugin/swOffcanvasMenu/onBeforeOpenMenu
+    * plugin/offCanvasMenu/openMenu             => plugin/swOffcanvasMenu/onOpenMenu
+    * plugin/offCanvasMenu/closeMenu            => plugin/swOffcanvasMenu/onCloseMenu
+    * plugin/-PLUGIN_NAME-/init                 => plugin/-PLUGIN_NAME-/onInit (PluginBase)
+    * plugin/-PLUGIN_NAME-/destroy              => plugin/-PLUGIN_NAME-/onDestroy (PluginBase)
+    * plugin/-PLUGIN_NAME-/on                   => plugin/-PLUGIN_NAME-/onRegisterEvent (PluginBase)
+    * plugin/-PLUGIN_NAME-/off                  => plugin/-PLUGIN_NAME-/onRemoveEvent (PluginBase)
+    * plugin/productSlider/trackItems           => plugin/swProductSlider/onTrackItems
+    * plugin/productSlider/trackArrows          => plugin/swProductSlider/onTrackArrows
+    * plugin/productSlider/itemsLoaded          => plugin/swProductSlider/onLoadItemsSuccess
+    * plugin/productSlider/loadItems            => plugin/swProductSlider/onLoadItems
+    * plugin/productSlider/createContainer      => plugin/swProductSlider/onCreateContainer
+    * plugin/productSlider/createArrows         => plugin/swProductSlider/onCreateArrows
+    * plugin/productSlider/slideNext            => plugin/swProductSlider/onSlideNext
+    * plugin/productSlider/slidePrev            => plugin/swProductSlider/onSlidePrev
+    * plugin/productSlider/slideToElement       => plugin/swProductSlider/onSlideToElement
+    * plugin/productSlider/slide                => plugin/swProductSlider/onSlide
+    * plugin/productSlider/autoSlide            => plugin/swProductSlider/onAutoSlide
+    * plugin/productSlider/stopAutoSlide        => plugin/swProductSlider/onStopAutoSlide
+    * plugin/productSlider/scrollNext           => plugin/swProductSlider/onScrollNext
+    * plugin/productSlider/scrollPrev           => plugin/swProductSlider/onScrollPrev
+    * plugin/productSlider/autoScroll           => plugin/swProductSlider/onAutoScroll
+    * plugin/productSlider/stopAutoScroll       => plugin/swProductSlider/onStopAutoScroll
+    * plugin/productSlider/buffer               => plugin/swProductSlider/onBuffer
+    * plugin/rangeSlider/changeMin              => plugin/swRangeSlider/onSetMin
+    * plugin/rangeSlider/changeMax              => plugin/swRangeSlider/onSetMax
+    * plugin/rangeSlider/reset                  => plugin/swRangeSlider/onReset
+    * plugin/rangeSlider/onChange               => plugin/swRangeSlider/onEndDrag
+* Added new validation rules for snippets
+    * Use `bin/console sw:snippets:validate <your-plugin-snippets-path>` to check the validity of your snippets.
+    * Defining a snippet value in multiple lines is deprecated.
+    * All snippet values that don't pass the validation should be refactored.
+* The method `getSeoArticleQuery` in `sRewriteTable.php` was changed to select the translations for the article attributes.
 
 ## 5.0.1
 * Create `sw:theme:dump:configuration` command to generate watch files for theme compiling
@@ -249,6 +322,7 @@ In this document you will find a changelog of the important changes related to t
     * `s_core_sessions_backend.created`
     * `s_emarketing_promotions*`
     * `s_core_plugins.capability_dummy`
+    * `s_articles_details.impressions`
 * The new Shopware core selects all required data for `sGetArticleById`, `sGetPromotionById` and `sGetArticlesByCategory`. The following events and internal functions are no longer used in these functions:
     * `sGetPromotionById` events
         * `Shopware_Modules_Articles_GetPromotionById_FilterSql`

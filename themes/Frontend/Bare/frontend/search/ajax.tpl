@@ -41,7 +41,7 @@
 								<span class="entry--price block">
                                     {$sArticle = $search_result}
                                     {*reset pseudo price value to prevent discount boxes*}
-                                    {$sArticle.pseudoprice = 0}
+                                    {$sArticle.has_pseudoprice = 0}
                                     {include file="frontend/listing/product-box/product-price.tpl" sArticle=$sArticle}
 								</span>
 							{/block}
@@ -56,7 +56,7 @@
 
                     {* Link to the built-in search *}
                     {block name="search_ajax_all_results_link"}
-                        <a href="{url controller='search' sSearch=$sSearchRequest.sSearch}" class="search-result--link entry--all-results-link block">
+                        <a href="{url controller="search"}?sSearch={$sSearchRequest.sSearch}" class="search-result--link entry--all-results-link block">
                             <i class="icon--arrow-right"></i>
                             {s name="SearchAjaxLinkAllResults"}{/s}
                         </a>

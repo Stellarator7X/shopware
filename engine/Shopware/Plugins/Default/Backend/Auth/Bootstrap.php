@@ -221,7 +221,7 @@ class Shopware_Plugins_Backend_Auth_Bootstrap extends Shopware_Components_Plugin
             $auth->refresh();
         }
 
-        $this->initLocale($auth);
+        $this->initLocale();
 
         if ($auth->hasIdentity()) {
             $identity = $auth->getIdentity();
@@ -257,27 +257,12 @@ class Shopware_Plugins_Backend_Auth_Bootstrap extends Shopware_Components_Plugin
 
     /**
      * Init backend locales
-     *
-     * @param Zend_Auth $auth
      */
-    protected function initLocale($auth = null)
+    protected function initLocale()
     {
         $bootstrap = $this->Application()->Bootstrap();
-        if ($auth !== null) {
-            $user = $auth->getIdentity();
-            /** @var $locale \Shopware\Models\Shop\Locale */
-        }
 
-        $locale = null;
-        if (isset($user->locale)) {
-            $locale = $user->locale;
-        } else {
-            $default = $this->getDefaultLocale();
-            $locale = Shopware()->Models()->getRepository(
-                'Shopware\Models\Shop\Locale'
-            )->find($default);
-        }
-
+        $locale = $this->getCurrentLocale();
         $bootstrap->getResource('Locale')->setLocale($locale->toString());
         $bootstrap->getResource('Snippets')->setLocale($locale);
         $template = $bootstrap->getResource('Template');
@@ -434,6 +419,7 @@ class Shopware_Plugins_Backend_Auth_Bootstrap extends Shopware_Components_Plugin
           && strpos($referer, 'http') === 0) {
             $referer = substr($referer, 0, strpos($referer, '/backend/'));
             $referer .= '/backend/';
+
             if (!isset($_SESSION['__SW_REFERER'])) {
                 $_SESSION['__SW_REFERER'] = $referer;
             } elseif (strpos($referer, $_SESSION['__SW_REFERER']) !== 0) {
@@ -487,5 +473,30 @@ class Shopware_Plugins_Backend_Auth_Bootstrap extends Shopware_Components_Plugin
             'enable' => false,
             'update' => true
         );
+    }
+
+    /**
+     * Loads current user's locale or, if none exists, the default fallback
+     *
+     * @return \Shopware\Models\Shop\Locale
+     */
+    protected function getCurrentLocale()
+    {
+        if (Shopware()->Container()->initialized('auth')) {
+            $auth = Shopware()->Auth();
+            if ($auth->hasIdentity()) {
+                $user = $auth->getIdentity();
+                if (isset($user->locale)) {
+                    return $user->locale;
+                }
+            }
+        }
+
+        $default = $this->getDefaultLocale();
+        $locale = Shopware()->Models()->getRepository(
+            'Shopware\Models\Shop\Locale'
+        )->find($default);
+
+        return $locale;
     }
 }
